@@ -78,7 +78,8 @@ text with the terminal's own selection, hold **Shift** while dragging (kitty, Gh
 ```
 --split <0.2-0.9>   share of the screen for the browser (default 0.6)
 --scale <n>         page device scale factor (default: 2 when cells look HiDPI, else 1)
---theme <t>         auto | dark | light   (auto follows the terminal background)
+--theme <t>         dark | light (default light)
+--autodetect-theme  match the terminal: dark page on a dark background (--theme wins)
 --transfer <t>      auto | direct | file  (how frames reach the terminal, see below)
 --chrome <path>     browser binary
 -- <args>           extra arguments for claude, e.g. `stamper <url> -- --model opus`

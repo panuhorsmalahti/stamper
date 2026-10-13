@@ -26,7 +26,8 @@ Options:
                      sign in (default: https://github.com/login). Close it when done.
   --split <0.2-0.9>  Share of the screen for the browser (default 0.6)
   --scale <n>        Page device scale factor (default: 2 on HiDPI cells, else 1)
-  --theme <t>        auto | dark | light (default auto: follows terminal background)
+  --theme <t>        dark | light (default light)
+  --autodetect-theme Match the terminal: dark page on a dark background (--theme wins)
   --transfer <t>     auto | direct | file: how images reach the terminal
   --chrome <path>    Chrome/Chromium binary (or STAMPER_CHROME)
   -h, --help         Show this help
@@ -71,6 +72,7 @@ async function main(): Promise<void> {
       split: { type: 'string' },
       scale: { type: 'string' },
       theme: { type: 'string' },
+      'autodetect-theme': { type: 'boolean' },
       transfer: { type: 'string' },
       chrome: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
@@ -108,7 +110,7 @@ async function main(): Promise<void> {
   if (!(split >= 0.2 && split <= 0.9)) fail('--split must be between 0.2 and 0.9', 2);
   const scale = values.scale === undefined ? undefined : Number(values.scale);
   if (scale !== undefined && !(scale > 0 && scale <= 4)) fail('--scale must be between 0 and 4', 2);
-  if (values.theme && !['auto', 'dark', 'light'].includes(values.theme)) fail('--theme must be auto, dark or light', 2);
+  if (values.theme && !['dark', 'light'].includes(values.theme)) fail('--theme must be dark or light', 2);
   if (values.transfer && !['auto', 'direct', 'file'].includes(values.transfer)) fail('--transfer must be auto, direct or file', 2);
 
   const claude = findClaude();
@@ -131,9 +133,9 @@ async function main(): Promise<void> {
   const theme =
     values.theme === 'dark' || values.theme === 'light'
       ? values.theme
-      : caps.background && !isDark(caps.background)
-        ? 'light'
-        : 'dark';
+      : values['autodetect-theme'] && caps.background && isDark(caps.background)
+        ? 'dark'
+        : 'light';
   const transfer: Transfer =
     values.transfer === 'direct' || values.transfer === 'file' ? values.transfer : caps.fileTransfer ? 'file' : 'direct';
 
