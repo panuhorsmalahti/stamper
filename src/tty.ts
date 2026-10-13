@@ -8,6 +8,11 @@ export interface TermCaps {
   /** Cell size in device pixels, if the terminal reported it. */
   cellW?: number;
   cellH?: number;
+  /**
+   * Device pixels per point, when the terminal says (iTerm2's ReportCellSize).
+   * iTerm2 answers CSI 16 t in points, so this is the only way to see Retina there.
+   */
+  scale?: number;
   /** undefined = the terminal didn't answer at all. */
   graphics?: boolean;
   fileTransfer: boolean;
@@ -155,7 +160,7 @@ export class Tty {
           finish();
         }
       });
-      this.write('\x1b[16t' + '\x1b[14t' + '\x1b]11;?\x1b\\' + queries.seq + '\x1b[c');
+      this.write(CELL_SIZE_QUERIES + '\x1b[14t' + '\x1b]11;?\x1b\\' + queries.seq + '\x1b[c');
     });
   }
 }
@@ -166,7 +171,19 @@ export function applyReply(caps: TermCaps, seq: string): 'cell' | 'window' | 'gr
   if ((m = seq.match(/^\x1b\[6;(\d+);(\d+)t$/))) {
     const h = Number(m[1]);
     const w = Number(m[2]);
+    // Once a terminal has reported its scale (iTerm2), its CSI 16 t is in points.
+    if (h > 0 && w > 0 && caps.scale === undefined) {
+      caps.cellH = h;
+      caps.cellW = w;
+    }
+    return 'cell';
+  }
+  if ((m = seq.match(/^\x1b\]1337;ReportCellSize=([\d.]+);([\d.]+)(?:;([\d.]+))?/))) {
+    const scale = Number(m[3] ?? 1);
+    const h = Number(m[1]) * scale;
+    const w = Number(m[2]) * scale;
     if (h > 0 && w > 0) {
+      caps.scale = scale;
       caps.cellH = h;
       caps.cellW = w;
     }
@@ -195,6 +212,9 @@ function parseWindowPx(seq: string): [number, number] | undefined {
   const w = Number(m[2]);
   return h > 0 && w > 0 ? [h, w] : undefined;
 }
+
+/** Cell size in device pixels: the xterm query, plus iTerm2's (which includes the scale). */
+export const CELL_SIZE_QUERIES = '\x1b[16t\x1b]1337;ReportCellSize\x1b\\';
 
 export function isDark([r, g, b]: [number, number, number]): boolean {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b < 128;

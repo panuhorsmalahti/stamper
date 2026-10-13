@@ -50,6 +50,15 @@ test('terminal replies are separated from keys', async () => {
   assert.deepEqual(caps, { fileTransfer: false, cellH: 32, cellW: 16, graphics: true, background: [30, 30, 32] });
 });
 
+test('iTerm2 cell size: points times the reported scale, in either reply order', () => {
+  for (const order of [[0, 1], [1, 0]]) {
+    const replies = ['\x1b[6;17;8t', '\x1b]1337;ReportCellSize=17;7.83;2\x1b\\'];
+    const caps = { fileTransfer: false };
+    for (const i of order) assert.equal(applyReply(caps, replies[i]), 'cell');
+    assert.deepEqual(caps, { fileTransfer: false, scale: 2, cellH: 34, cellW: 15.66 });
+  }
+});
+
 test('emoji arrive as one key', async () => {
   const ev = await collect(['👍']);
   assert.deepEqual(ev, [{ type: 'key', seq: '👍' }]);

@@ -10,7 +10,7 @@ import { ClaudePane } from './claude-pane.js';
 import { debug } from './debug.js';
 import { decodeMouse, type InputEvent } from './input.js';
 import { deleteImage, pngSize, transmitPng, type Transfer } from './kitty.js';
-import { applyReply, pointerShape, type TermCaps, type Tty } from './tty.js';
+import { applyReply, CELL_SIZE_QUERIES, pointerShape, type TermCaps, type Tty } from './tty.js';
 
 export interface AppOptions {
   url: string;
@@ -84,8 +84,10 @@ export class App {
 
   /** Resolves with claude's exit code. */
   run(): Promise<number> {
-    // Terminals report device pixels; HiDPI cells are ~2x taller. Fixed for the session.
-    this.dpr = this.o.scale ?? ((this.caps.cellH ?? 16) >= 24 ? 2 : 1);
+    // Use the scale the terminal reports (iTerm2); otherwise guess from cell size, since
+    // terminals like kitty report device pixels and HiDPI cells are ~2x taller.
+    // Fixed for the session.
+    this.dpr = this.o.scale ?? this.caps.scale ?? ((this.caps.cellH ?? 16) >= 24 ? 2 : 1);
     this.split = this.o.split;
     this.layout = this.computeLayout();
     const L = this.layout;
@@ -123,7 +125,7 @@ export class App {
     process.stdout.on('resize', () => {
       clearTimeout(this.resizeTimer);
       this.resizeTimer = setTimeout(() => {
-        this.tty.write('\x1b[16t'); // font size may have changed too
+        this.tty.write(CELL_SIZE_QUERIES); // font size may have changed too
         this.relayout();
       }, 50);
     });
