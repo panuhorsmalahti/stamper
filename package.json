@@ -1,0 +1,32 @@
+{
+  "name": "stamper",
+  "version": "0.1.0",
+  "description": "Split-screen TUI: a live Chromium page (kitty graphics) on top, Claude Code below",
+  "type": "module",
+  "bin": {
+    "stamper": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepare": "tsc -p .",
+    "dev": "tsc -p . --watch",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@xterm/addon-unicode11": "^0.9.0",
+    "@xterm/headless": "^6.0.0",
+    "node-pty": "^1.1.0",
+    "puppeteer-core": "^25.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}
