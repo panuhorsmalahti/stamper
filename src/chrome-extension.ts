@@ -62,7 +62,8 @@ export function installNativeHost(): string[] {
   };
   const written: string[] = [];
   for (const dir of BROWSER_DIRS) {
-    if (!fs.existsSync(dir)) continue; // browser not installed
+    // Only browsers that have actually been run (other tools create these dirs too).
+    if (!fs.existsSync(path.join(dir, 'Local State'))) continue;
     const file = path.join(dir, 'NativeMessagingHosts', `${HOST_NAME}.json`);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + '\n');
