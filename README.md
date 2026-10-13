@@ -47,6 +47,26 @@ stamper --login <url>      # or any other site (SSO, Jira, ...)
 Sign in, close the window, and later stamper sessions reuse the cookies. If you run two
 stamper sessions at the same time, the second one uses a temporary copy of the profile.
 
+## Open pages from Chrome
+
+An "Open in stamper" extension for your everyday Chrome (macOS + iTerm2): click its toolbar
+button, press `Alt+Shift+S`, or right-click a link → "Open link in stamper", and a new iTerm2
+tab runs `stamper '<url>'`.
+
+```
+stamper --install-chrome-extension
+```
+
+This registers a small [native messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging)
+helper (extensions can't start programs themselves) that only this extension may call. Then, once:
+
+1. open `chrome://extensions` and turn on **Developer mode**
+2. click **Load unpacked** and pick the `chrome-extension` folder of this repo
+
+The first time you use it, macOS asks whether Chrome may control iTerm2; allow it. The command
+runs in your normal shell, in the new tab's directory. If something's wrong, the button shows a
+red `!` and its tooltip says why. `stamper --uninstall-chrome-extension` removes the helper.
+
 ## Keys
 
 | Where | Key | Action |

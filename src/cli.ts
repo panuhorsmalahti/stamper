@@ -6,6 +6,7 @@ import { parseArgs } from 'node:util';
 import { App, normalizeUrl } from './app.js';
 import { debug } from './debug.js';
 import { interactiveLogin } from './browser.js';
+import { EXTENSION_DIR, installNativeHost, uninstallNativeHost } from './chrome-extension.js';
 import { acquireProfile, baseProfileDir, findChrome, profileLockedBy, which } from './chrome.js';
 import type { Transfer } from './kitty.js';
 import { isDark, Tty } from './tty.js';
@@ -17,6 +18,7 @@ const USAGE = `stamper ${VERSION} — review a page with Claude Code side by sid
 Usage:
   stamper <url> [options] [-- <extra claude args>]
   stamper --login [url]
+  stamper --install-chrome-extension | --uninstall-chrome-extension
 
 The page renders in the top of the terminal (kitty graphics protocol) and
 Claude Code runs below, told to help review <url>.
@@ -30,6 +32,11 @@ Options:
   --autodetect-theme Match the terminal: dark page on a dark background (--theme wins)
   --transfer <t>     auto | direct | file: how images reach the terminal
   --chrome <path>    Chrome/Chromium binary (or STAMPER_CHROME)
+  --install-chrome-extension
+                     Set up the "Open in stamper" extension for your own Chrome:
+                     a toolbar button that opens the page in a new iTerm2 tab
+  --uninstall-chrome-extension
+                     Remove what --install-chrome-extension set up
   -h, --help         Show this help
   -v, --version      Show version
 
@@ -76,6 +83,8 @@ async function main(): Promise<void> {
       'autodetect-theme': { type: 'boolean' },
       transfer: { type: 'string' },
       chrome: { type: 'string' },
+      'install-chrome-extension': { type: 'boolean' },
+      'uninstall-chrome-extension': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
     },
@@ -84,6 +93,29 @@ async function main(): Promise<void> {
 
   if (values.help) return void process.stdout.write(USAGE);
   if (values.version) return void process.stdout.write(`${VERSION}\n`);
+
+  if (values['install-chrome-extension']) {
+    const written = installNativeHost();
+    if (written.length === 0) fail('no Chrome, Chromium, Brave or Edge profile found in ~/Library/Application Support.');
+    process.stdout.write(
+      `Registered the stamper native messaging host for:\n${written.map((f) => `  ${f}`).join('\n')}\n\n` +
+        `Now load the extension (once):\n` +
+        `  1. Open chrome://extensions and turn on Developer mode (top right)\n` +
+        `  2. Click "Load unpacked" and choose:\n     ${EXTENSION_DIR}\n\n` +
+        `Then click the stamper button in the toolbar, press Alt+Shift+S, or right-click a\n` +
+        `link -> "Open link in stamper". The first time, macOS asks whether Chrome may\n` +
+        `control iTerm2: allow it.\n`,
+    );
+    return;
+  }
+  if (values['uninstall-chrome-extension']) {
+    const removed = uninstallNativeHost();
+    process.stdout.write(
+      (removed.length ? `Removed:\n${removed.map((f) => `  ${f}`).join('\n')}\n` : 'Nothing to remove.\n') +
+        'Remove the extension itself from chrome://extensions.\n',
+    );
+    return;
+  }
 
   const chromePath = findChrome(values.chrome);
   if (!chromePath) fail('no Chrome/Chromium found. Install Google Chrome, or pass --chrome <path> / set STAMPER_CHROME.');

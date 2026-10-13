@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Open in stamper",
+  "version": "0.1.0",
+  "description": "Open the current page or a link in stamper, in a new iTerm2 tab.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqt6pravSjFUGzLHlOROK7UesU9PUaVoahhlJqBd1c0R7KeCZs4iBzfWDIwg6J8Ws8jmYhMPp096G13K2HP+NCTXiun5IzYw1U0ea/p7KhuxOFLQLi/qz05LXWwIim8JQwGm80nWbud0Mdvv5tpEr4ui/+uEQZbElCbdkmlIGrk8V3iy96azbk2l1n3S/vKlrdlfzp4osqNdz8mNePNzXngAPIEyHI/7mISvSvDLhXDSTkJllxiS7IBpQMsNBSd8JXjIvcl8N+JDLrs4jHbvIOQx6o3VQ4ls09tH1Fd2OiZJOc9WE5c8dJQjrIvYkJtSXWMxF6ubw4Uym3aNLCm9NQQIDAQAB",
+  "permissions": ["nativeMessaging", "contextMenus", "activeTab"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_title": "Open in stamper",
+    "default_icon": { "16": "icons/16.png", "32": "icons/32.png" }
+  },
+  "commands": {
+    "_execute_action": { "suggested_key": { "default": "Alt+Shift+S" }, "description": "Open the current page in stamper" }
+  },
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" }
+}
