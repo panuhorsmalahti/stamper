@@ -68,6 +68,8 @@ export class App {
   private resizeTimer: NodeJS.Timeout | undefined;
   private tagCols: Record<Focus, [number, number]> = { claude: [0, 0], browser: [0, 0] };
   private dpr = 1;
+  private pointer = '';
+  private pointerZone: 'browser' | 'status' | 'pane' | undefined;
 
   constructor(
     private readonly tty: Tty,
@@ -100,6 +102,9 @@ export class App {
     this.browser.on('state', () => this.paintStatus());
     this.browser.on('message', (m) => this.flash(m));
     this.browser.on('exit', () => this.flash('Browser process exited'));
+    this.browser.on('cursor', (shape) => {
+      if (this.pointerZone === 'browser') this.setPointer(shape);
+    });
 
     if (this.o.initialMessage) this.flash(this.o.initialMessage);
     this.paint(this.statusBar());
@@ -374,6 +379,13 @@ export class App {
     this.paintStatus();
   }
 
+  /** Mouse pointer shape (OSC 22, CSS cursor names); kitty and Ghostty support it. */
+  private setPointer(shape: string): void {
+    if (shape === this.pointer) return;
+    this.pointer = shape;
+    this.tty.write(`\x1b]22;${shape}\x1b\\`);
+  }
+
   private onMouse(code: number, col: number, row: number, release: boolean): void {
     const L = this.layout;
     const m = decodeMouse(code);
@@ -384,6 +396,9 @@ export class App {
     if (this.capture && (m.motion || release)) target = this.capture;
     if (isPress) this.capture = target === 'status' ? null : target;
     if (release) this.capture = null;
+
+    this.pointerZone = target;
+    this.setPointer(target === 'browser' ? this.browser.cursorShape : target === 'pane' ? 'text' : 'default');
 
     if (target === 'status') {
       if (isPress) {

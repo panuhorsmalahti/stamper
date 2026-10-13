@@ -39,6 +39,8 @@ export interface BrowserEvents {
   state: [PageState];
   message: [string];
   exit: [];
+  /** CSS cursor name the page shows under the mouse. */
+  cursor: [shape: string];
 }
 
 const BUTTON_BITS = { left: 1, right: 2, middle: 4, none: 0 } as const;
@@ -64,6 +66,9 @@ export class BrowserPane extends EventEmitter<BrowserEvents> {
   private keyChain: Promise<void> = Promise.resolve();
   private closing = false;
   private misfitSince = 0;
+  private cursorQuery: { x: number; y: number } | undefined;
+  private cursorBusy = false;
+  cursorShape = 'default';
   state: PageState = { url: '', title: '', loading: true };
 
   constructor(
@@ -243,9 +248,12 @@ export class BrowserPane extends EventEmitter<BrowserEvents> {
     switch (e.kind) {
       case 'wheel':
         send({ ...base, type: 'mouseWheel', deltaX: e.deltaX ?? 0, deltaY: e.deltaY ?? 0 });
+        // Content moves under the pointer; look again once the scroll has happened.
+        setTimeout(() => this.trackCursor(e.x, e.y), 120);
         return;
       case 'move':
         send({ ...base, type: 'mouseMoved', button: e.button, buttons: this.buttons });
+        this.trackCursor(e.x, e.y);
         return;
       case 'press': {
         const now = Date.now();
@@ -259,8 +267,30 @@ export class BrowserPane extends EventEmitter<BrowserEvents> {
       case 'release':
         this.buttons &= ~BUTTON_BITS[e.button];
         send({ ...base, type: 'mouseReleased', button: e.button, buttons: this.buttons, clickCount: this.lastClick.count });
+        this.trackCursor(e.x, e.y);
         return;
     }
+  }
+
+  /** Headless Chrome has no cursor to report, so ask the page what it would show. */
+  private trackCursor(x: number, y: number): void {
+    this.cursorQuery = { x, y };
+    if (!this.cursorBusy) void this.runCursorQueries();
+  }
+
+  /** One query in flight at a time; only the latest pointer position matters. */
+  private async runCursorQueries(): Promise<void> {
+    this.cursorBusy = true;
+    while (this.cursorQuery && this.page) {
+      const { x, y } = this.cursorQuery;
+      this.cursorQuery = undefined;
+      const shape = await this.page.evaluate(pageCursorAt, x, y).catch(() => this.cursorShape);
+      if (shape !== this.cursorShape) {
+        this.cursorShape = shape;
+        this.emit('cursor', shape);
+      }
+    }
+    this.cursorBusy = false;
   }
 
   /** A raw terminal key sequence (legacy encoding). */
@@ -329,6 +359,28 @@ export class BrowserPane extends EventEmitter<BrowserEvents> {
     await Promise.race([b.close().catch(() => {}), new Promise((r) => setTimeout(r, 3000))]);
     b.process()?.kill('SIGKILL');
   }
+}
+
+/** Runs in the page: the cursor a browser would show at (x, y), as a CSS cursor name. */
+function pageCursorAt(x: number, y: number): string {
+  const el = document.elementFromPoint(x, y);
+  if (!el) return 'default';
+  const css = getComputedStyle(el).cursor.split(',').pop()!.trim();
+  if (css && css !== 'auto') return css;
+  if (el instanceof HTMLTextAreaElement || (el instanceof HTMLElement && el.isContentEditable)) return 'text';
+  if (el instanceof HTMLInputElement && !/^(button|submit|reset|checkbox|radio|image|range|color|file)$/.test(el.type)) {
+    return 'text';
+  }
+  // 'auto' over actual text is an I-beam.
+  const caret = document.caretRangeFromPoint(x, y);
+  if (caret?.startContainer.nodeType === Node.TEXT_NODE) {
+    const range = document.createRange();
+    range.selectNodeContents(caret.startContainer);
+    for (const r of range.getClientRects()) {
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return 'text';
+    }
+  }
+  return 'default';
 }
 
 /** Width/height from a base64 PNG's IHDR chunk. */
