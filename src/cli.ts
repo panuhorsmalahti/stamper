@@ -126,7 +126,7 @@ async function main(): Promise<void> {
     const term = process.env.TERM_PROGRAM ?? process.env.TERM ?? 'this terminal';
     fail(
       `${term} doesn't support the kitty graphics protocol. ` +
-        'Run stamper directly in kitty, Ghostty or WezTerm (not inside tmux/screen).',
+        'Run stamper directly in kitty, Ghostty, WezTerm or a recent iTerm2 (not inside tmux/screen).',
     );
   }
 

@@ -30,8 +30,8 @@ claude --append-system-prompt "Your goal is to assist in the review of this pull
 
 ## Requirements
 
-- A terminal with the kitty graphics protocol: **kitty**, **Ghostty** or **WezTerm**.
-  iTerm2, Terminal.app and tmux/screen won't work; stamper checks on startup and says so.
+- A terminal with the kitty graphics protocol: **kitty**, **Ghostty**, **WezTerm** or a recent **iTerm2**.
+  Terminal.app and tmux/screen won't work; stamper checks on startup and says so.
 - Google Chrome, Chromium, Edge or Brave (found automatically; override with `--chrome` or `STAMPER_CHROME`).
 - The `claude` CLI on your `PATH`.
 - Node.js 20+.
