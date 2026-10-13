@@ -102,7 +102,7 @@ export class App {
     this.browser.on('exit', () => this.flash('Browser process exited'));
 
     if (this.o.initialMessage) this.flash(this.o.initialMessage);
-    this.paint(this.placeholder() + this.statusBar());
+    this.paint(this.statusBar());
     this.browser
       .start(this.o.url, L.vp)
       .then(() => debug('browser started', L.vp))
@@ -152,7 +152,7 @@ export class App {
     this.layout = this.computeLayout();
     const L = this.layout;
     this.pane.resize(L.cols, L.paneRows, L.paneTop);
-    const content = this.lastFrame ? this.frame(this.lastFrame) : this.placeholder();
+    const content = this.lastFrame ? this.frame(this.lastFrame) : '';
     this.paint('\x1b[0m\x1b[2J' + content + this.statusBar() + this.pane.render());
     this.browser.resize(L.vp).catch(() => {});
   }
@@ -176,14 +176,6 @@ export class App {
     if (this.shownImage !== undefined && this.shownImage !== id) s += deleteImage(this.shownImage);
     this.shownImage = id;
     return s;
-  }
-
-  private placeholder(): string {
-    const { browserRows, cols } = this.layout;
-    const text = `Loading ${this.o.url}`.slice(0, cols - 2);
-    const row = Math.max(1, Math.ceil(browserRows / 2));
-    const col = Math.max(1, Math.floor((cols - text.length) / 2) + 1);
-    return `\x1b[${row};${col}H\x1b[0;2m${text}\x1b[0m`;
   }
 
   /** One synchronized update that leaves the cursor where it belongs. */
