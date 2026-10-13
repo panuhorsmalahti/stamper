@@ -36,6 +36,7 @@ Options:
 Keys:
   Ctrl+]             Toggle keyboard focus between Claude and the browser
   Click              Focuses the pane you click; clicks/scroll/drag reach the page
+  Drag status bar    Resize the split between the browser and Claude
   Browser focus:     Ctrl+L go to URL · Alt+←/→ back/forward · Ctrl+R reload
   Claude pane:       Mouse wheel scrolls back through Claude's output
 `;

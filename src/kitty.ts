@@ -25,10 +25,18 @@ export function tempImagePath(): string {
 
 /**
  * Transmit a PNG (base64) and place it at the cursor, scaled to cols x rows cells,
- * without moving the cursor.
+ * without moving the cursor. `cropHeight` shows only the top that many pixels.
  */
-export function transmitPng(id: number, pngBase64: string, cols: number, rows: number, transfer: Transfer): string {
-  const ctrl = `a=T,f=100,i=${id},c=${cols},r=${rows},C=1,q=2`;
+export function transmitPng(
+  id: number,
+  pngBase64: string,
+  cols: number,
+  rows: number,
+  transfer: Transfer,
+  cropHeight?: number,
+): string {
+  const crop = cropHeight ? `,h=${cropHeight}` : '';
+  const ctrl = `a=T,f=100,i=${id},c=${cols},r=${rows}${crop},C=1,q=2`;
   if (transfer === 'file') {
     const file = tempImagePath();
     fs.writeFileSync(file, Buffer.from(pngBase64, 'base64'));
@@ -44,6 +52,13 @@ export function transmitPng(id: number, pngBase64: string, cols: number, rows: n
     out += i === 0 ? gfx(`${ctrl},m=1`, chunk) : gfx(`m=${more},q=2`, chunk);
   }
   return out;
+}
+
+/** Width/height from a base64 PNG's IHDR chunk. */
+export function pngSize(b64: string): [number, number] | undefined {
+  const b = Buffer.from(b64.slice(0, 32), 'base64');
+  if (b.length < 24 || b.readUInt32BE(12) !== 0x49484452) return undefined; // "IHDR"
+  return [b.readUInt32BE(16), b.readUInt32BE(20)];
 }
 
 /** Delete an image's placements and free its data. */

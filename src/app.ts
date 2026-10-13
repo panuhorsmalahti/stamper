@@ -9,7 +9,7 @@ import { BrowserPane, type MouseInput, type Viewport } from './browser.js';
 import { ClaudePane } from './claude-pane.js';
 import { debug } from './debug.js';
 import { decodeMouse, type InputEvent } from './input.js';
-import { deleteImage, transmitPng, type Transfer } from './kitty.js';
+import { deleteImage, pngSize, transmitPng, type Transfer } from './kitty.js';
 import { applyReply, type TermCaps, type Tty } from './tty.js';
 
 export interface AppOptions {
@@ -43,6 +43,8 @@ type Focus = 'claude' | 'browser';
 const IMAGE_IDS = [0x57a30001, 0x57a30002];
 const MOUSE_BUTTONS = ['left', 'middle', 'right', 'none'] as const;
 const PANE_FRAME_MS = 16;
+const MIN_BROWSER_ROWS = 3;
+const MIN_PANE_ROWS = 3;
 
 const BAR = '\x1b[0;38;5;252;48;5;236m';
 const DIM = '\x1b[0;38;5;245;48;5;236m';
@@ -61,7 +63,10 @@ export class App {
   private shownImage: number | undefined;
   private lastFrame: string | undefined;
   private message: { text: string; until: number } | undefined;
-  private capture: 'browser' | 'pane' | null = null;
+  private capture: 'browser' | 'pane' | 'divider' | null = null;
+  /** Browser share of the screen; starts at --split, changed by dragging the status bar. */
+  private split = 0.6;
+  private browserResizeTimer: NodeJS.Timeout | undefined;
   private paneTimer: NodeJS.Timeout | undefined;
   private lastPaneRender = 0;
   private pendingSince = 0;
@@ -81,6 +86,7 @@ export class App {
   run(): Promise<number> {
     // Terminals report device pixels; HiDPI cells are ~2x taller. Fixed for the session.
     this.dpr = this.o.scale ?? ((this.caps.cellH ?? 16) >= 24 ? 2 : 1);
+    this.split = this.o.split;
     this.layout = this.computeLayout();
     const L = this.layout;
     this.tty.enter();
@@ -135,7 +141,7 @@ export class App {
   private computeLayout(): Layout {
     const rows = this.tty.rows;
     const cols = this.tty.cols;
-    const browserRows = clamp(Math.round(rows * this.o.split), 1, Math.max(1, rows - 3));
+    const browserRows = clamp(Math.round(rows * this.split), 1, Math.max(1, rows - 3));
     const paneTop = browserRows + 1;
     const cellW = this.caps.cellW ?? 8;
     const cellH = this.caps.cellH ?? 16;
@@ -159,7 +165,25 @@ export class App {
     this.pane.resize(L.cols, L.paneRows, L.paneTop);
     const content = this.lastFrame ? this.frame(this.lastFrame) : '';
     this.paint('\x1b[0m\x1b[2J' + content + this.statusBar() + this.pane.render());
-    this.browser.resize(L.vp).catch(() => {});
+    // While the divider is being dragged, re-render the page only once it settles.
+    clearTimeout(this.browserResizeTimer);
+    if (this.capture === 'divider') this.browserResizeTimer = setTimeout(() => this.resizeBrowser(), 150);
+    else this.resizeBrowser();
+  }
+
+  private resizeBrowser(): void {
+    clearTimeout(this.browserResizeTimer);
+    this.browserResizeTimer = undefined;
+    this.browser.resize(this.layout.vp).catch(() => {});
+  }
+
+  /** Divider drag: the status bar follows the pointer, keeping both panes usable. */
+  private dragDivider(row: number): void {
+    const { rows, browserRows } = this.layout;
+    const next = clamp(row - 1, MIN_BROWSER_ROWS, rows - 1 - MIN_PANE_ROWS);
+    if (next === browserRows || next < 1) return;
+    this.split = next / rows;
+    this.relayout();
   }
 
   // --------------------------------------------------------------- drawing
@@ -173,11 +197,20 @@ export class App {
 
   private frame(b64: string): string {
     this.lastFrame = b64;
-    const { cols, browserRows } = this.layout;
+    const { cols, browserRows, vp } = this.layout;
+    // A frame rendered for another pane height (mid-drag, before Chrome catches up)
+    // is shown unscaled: cropped when the pane shrank, shorter when it grew.
+    let rows = browserRows;
+    let crop: number | undefined;
+    const size = pngSize(b64);
+    if (size && Math.abs(size[0] - vp.pxW) <= 4 && Math.abs(size[1] - vp.pxH) > 4) {
+      crop = Math.min(size[1], vp.pxH);
+      rows = clamp(Math.round((crop / vp.pxH) * browserRows), 1, browserRows);
+    }
     this.imageSlot ^= 1;
     const id = IMAGE_IDS[this.imageSlot]!;
     // Place the new image first, then drop the old one: no blank frame in between.
-    let s = '\x1b[1;1H' + transmitPng(id, b64, cols, browserRows, this.o.transfer);
+    let s = '\x1b[1;1H' + transmitPng(id, b64, cols, rows, this.o.transfer, crop);
     if (this.shownImage !== undefined && this.shownImage !== id) s += deleteImage(this.shownImage);
     this.shownImage = id;
     return s;
@@ -379,6 +412,10 @@ export class App {
     this.paintStatus();
   }
 
+  private tagAt(col: number): Focus | undefined {
+    return (['claude', 'browser'] as const).find((f) => col >= this.tagCols[f][0] && col <= this.tagCols[f][1]);
+  }
+
   /** Mouse pointer shape (OSC 22, CSS cursor names); kitty and Ghostty support it. */
   private setPointer(shape: string): void {
     if (shape === this.pointer) return;
@@ -390,6 +427,16 @@ export class App {
     const L = this.layout;
     const m = decodeMouse(code);
     const isPress = !m.wheel && !m.motion && !release;
+
+    if (this.capture === 'divider') {
+      if (m.motion) this.dragDivider(row);
+      if (release) {
+        this.capture = null;
+        if (this.browserResizeTimer) this.resizeBrowser();
+      }
+      return;
+    }
+
     let target: 'browser' | 'status' | 'pane' =
       row <= L.browserRows ? 'browser' : row === L.statusRow ? 'status' : 'pane';
     // Drags and releases go to wherever the press happened.
@@ -397,15 +444,16 @@ export class App {
     if (isPress) this.capture = target === 'status' ? null : target;
     if (release) this.capture = null;
 
+    const tag = target === 'status' ? this.tagAt(col) : undefined;
     this.pointerZone = target;
-    this.setPointer(target === 'browser' ? this.browser.cursorShape : target === 'pane' ? 'text' : 'default');
+    this.setPointer(
+      target === 'browser' ? this.browser.cursorShape : target === 'pane' ? 'text' : tag ? 'pointer' : 'row-resize',
+    );
 
     if (target === 'status') {
-      if (isPress) {
-        for (const f of ['claude', 'browser'] as const) {
-          const [a, b] = this.tagCols[f];
-          if (col >= a && col <= b) this.setFocus(f);
-        }
+      if (isPress && m.button === 0) {
+        if (tag) this.setFocus(tag);
+        else this.capture = 'divider'; // the status bar is the split handle
       }
       return;
     }

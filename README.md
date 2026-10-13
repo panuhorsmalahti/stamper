@@ -53,6 +53,7 @@ stamper sessions at the same time, the second one uses a temporary copy of the p
 |---|---|---|
 | anywhere | `Ctrl+]` | toggle keyboard focus between Claude and the browser |
 | anywhere | click | focus the pane you clicked |
+| status bar | drag up/down | resize the split between the browser and Claude |
 | browser | click / drag / wheel | passed to the page |
 | browser focus | typing, paste | goes to the page |
 | browser focus | `Ctrl+L` | go to URL (Enter opens, Esc cancels) |
@@ -66,7 +67,7 @@ text with the terminal's own selection, hold **Shift** while dragging (kitty, Gh
 ## Options
 
 ```
---split <0.2-0.9>   share of the screen for the browser (default 0.6)
+--split <0.2-0.9>   initial share of the screen for the browser (default 0.6; drag the status bar to change it)
 --scale <n>         page device scale factor (default: 2 when cells look HiDPI, else 1)
 --theme <t>         dark | light (default light)
 --autodetect-theme  match the terminal: dark page on a dark background (--theme wins)

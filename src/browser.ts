@@ -4,6 +4,7 @@
  */
 import { EventEmitter } from 'node:events';
 import { debug } from './debug.js';
+import { pngSize } from './kitty.js';
 import puppeteer, { type Browser, type CDPSession, type KeyInput, type Page, type Target } from 'puppeteer-core';
 
 export interface Viewport {
@@ -381,13 +382,6 @@ function pageCursorAt(x: number, y: number): string {
     }
   }
   return 'default';
-}
-
-/** Width/height from a base64 PNG's IHDR chunk. */
-function pngSize(b64: string): [number, number] | undefined {
-  const b = Buffer.from(b64.slice(0, 32), 'base64');
-  if (b.length < 24 || b.readUInt32BE(12) !== 0x49484452) return undefined; // "IHDR"
-  return [b.readUInt32BE(16), b.readUInt32BE(20)];
 }
 
 export interface KeySpec {
