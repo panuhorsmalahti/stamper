@@ -10,7 +10,7 @@ import { ClaudePane } from './claude-pane.js';
 import { debug } from './debug.js';
 import { decodeMouse, type InputEvent } from './input.js';
 import { deleteImage, pngSize, transmitPng, type Transfer } from './kitty.js';
-import { applyReply, type TermCaps, type Tty } from './tty.js';
+import { applyReply, pointerShape, type TermCaps, type Tty } from './tty.js';
 
 export interface AppOptions {
   url: string;
@@ -416,11 +416,11 @@ export class App {
     return (['claude', 'browser'] as const).find((f) => col >= this.tagCols[f][0] && col <= this.tagCols[f][1]);
   }
 
-  /** Mouse pointer shape (OSC 22, CSS cursor names); kitty and Ghostty support it. */
+  /** Mouse pointer shape via OSC 22 (kitty, Ghostty, iTerm2 3.7+). */
   private setPointer(shape: string): void {
     if (shape === this.pointer) return;
     this.pointer = shape;
-    this.tty.write(`\x1b]22;${shape}\x1b\\`);
+    this.tty.write(pointerShape(shape));
   }
 
   private onMouse(code: number, col: number, row: number, release: boolean): void {

@@ -23,8 +23,46 @@ const ENTER =
   '\x1b[?2004h' + // bracketed paste
   '\x1b[2J';
 
-// kitty resets the pointer shape on an empty OSC 22; other terminals need a name.
-const POINTER_RESET = process.env.KITTY_WINDOW_ID ? '\x1b]22;\x1b\\' : '\x1b]22;text\x1b\\';
+/**
+ * iTerm2's OSC 22 only knows X11 cursor names and falls back to its default
+ * pointer for anything else; kitty and Ghostty take CSS names.
+ */
+const ITERM2 = process.env.TERM_PROGRAM === 'iTerm.app' || process.env.LC_TERMINAL === 'iTerm2';
+
+const X11_POINTERS: Record<string, string> = {
+  default: 'left_ptr',
+  pointer: 'hand2',
+  text: 'xterm',
+  'vertical-text': 'xterm',
+  crosshair: 'crosshair',
+  cell: 'crosshair',
+  'not-allowed': 'X_cursor',
+  'no-drop': 'X_cursor',
+  grab: 'fleur',
+  grabbing: 'fleur',
+  move: 'fleur',
+  'all-scroll': 'fleur',
+  'row-resize': 'sb_v_double_arrow',
+  'ns-resize': 'sb_v_double_arrow',
+  'n-resize': 'sb_up_arrow',
+  's-resize': 'based_arrow_down',
+  'col-resize': 'sb_h_double_arrow',
+  'ew-resize': 'sb_h_double_arrow',
+  'e-resize': 'right_side',
+  'w-resize': 'left_side',
+  'zoom-in': 'plus',
+  'zoom-out': 'minus',
+  wait: 'watch',
+  progress: 'watch',
+};
+
+/** OSC 22 for a CSS cursor name, translated for terminals that need it. */
+export function pointerShape(css: string): string {
+  return `\x1b]22;${ITERM2 ? (X11_POINTERS[css] ?? 'left_ptr') : css}\x1b\\`;
+}
+
+// kitty and iTerm2 reset the pointer on an empty OSC 22; Ghostty needs a name.
+const POINTER_RESET = process.env.KITTY_WINDOW_ID || ITERM2 ? '\x1b]22;\x1b\\' : pointerShape('text');
 
 const LEAVE =
   POINTER_RESET +
