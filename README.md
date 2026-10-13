@@ -6,7 +6,7 @@ A split-screen terminal app for reviewing pull requests with Claude Code.
 stamper https://github.com/owner/repo/pull/123
 ```
 
-![stamper reviewing a GitHub pull request: the PR page on top, Claude Code below](stamper.png)
+![stamper reviewing a GitHub pull request: the PR page on top, Claude Code below](stamper.png?v=e6c3f9b)
 
 The top pane is a headless Chrome rendering the URL, streamed into the terminal with the
 [kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/). You can click,
